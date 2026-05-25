@@ -1,0 +1,7 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:drawable="@drawable/sarcov_logo_1779700665394"
+        android:width="66dp"
+        android:height="66dp"
+        android:gravity="center" />
+</layer-list>

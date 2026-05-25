@@ -1,0 +1,6 @@
+{
+  "name": "SARCOV",
+  "description": "System Architecture & 3D Knowledge Graph Explorer for SARS-CoV-2 protein structures and genomic networks by Nurcholish Adam.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
