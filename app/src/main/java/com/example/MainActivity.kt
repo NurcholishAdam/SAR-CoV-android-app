@@ -51,6 +51,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.theme.*
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.style.TextOverflow
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -147,17 +149,703 @@ data class ArchSubsystem(
     val icon: androidx.compose.ui.graphics.vector.ImageVector
 )
 
-data class Spike3D(
+data class Offset3D(val x: Float, val y: Float, val z: Float)
+
+data class Atom3D(
     val id: String,
     val name: String,
-    val theta: Float, // polar coordinate angle
-    val phi: Float,   // polar coordinate angle
-    val radius: Float = 140f,
-    val pdbId: String,
-    val scaleFactor: Float = 1f,
+    val x: Float,
+    val y: Float,
+    val z: Float,
+    val sizeDp: Float = 12f,
+    val color: Color,
     val desc: String,
-    val color: Color
+    val elementSymbol: String = ""
 )
+
+data class Bond3D(
+    val sourceId: String,
+    val targetId: String,
+    val color: Color,
+    val thicknessDp: Float = 2.5f,
+    val isDashed: Boolean = false
+)
+
+data class VisualStructure(
+    val id: String,
+    val name: String,
+    val category: String, // "VIRUS" or "MATERIAL"
+    val subtitle: String,
+    val description: String,
+    val pdbReference: String,
+    val atoms: List<Atom3D>,
+    val bonds: List<Bond3D>,
+    val baseEnvelopeRadiusDp: Float = 0f,
+    val envelopeColor: Color = Color.Transparent
+)
+
+object StructureLibrary {
+    fun getStructure(id: String): VisualStructure {
+        return when (id) {
+            "sars_cov_2" -> generateSarsCov2()
+            "influenza" -> generateInfluenza()
+            "adenovirus" -> generateAdenovirus()
+            "bacteriophage" -> generateBacteriophage()
+            "graphene" -> generateGraphene()
+            "nanotube" -> generateNanotube()
+            "silicon" -> generateSilicon()
+            "nacl" -> generateNaCl()
+            else -> generateSarsCov2()
+        }
+    }
+
+    private fun generateSarsCov2(): VisualStructure {
+        val atoms = mutableListOf<Atom3D>()
+        val bonds = mutableListOf<Bond3D>()
+        val radEnvelope = 80f
+        
+        // 1. Spindle Internal Helix RNA
+        for (i in 1..15) {
+            val angle = i * 0.7f
+            val r = 35f
+            val y = -40f + i * 5f
+            val x = r * cos(angle)
+            val z = r * sin(angle)
+            atoms.add(
+                Atom3D(
+                    id = "RNA_$i",
+                    name = "RNA Core Segment $i",
+                    x = x, y = y, z = z,
+                    sizeDp = 6f,
+                    color = BioGreen,
+                    desc = "Single-stranded viral RNA positive chain molecule code sequence segment of SARS-CoV-2.",
+                    elementSymbol = "RNA"
+                )
+            )
+            if (i > 1) {
+                bonds.add(Bond3D("RNA_${i - 1}", "RNA_$i", color = BioGreen.copy(alpha = 0.5f), thicknessDp = 1.5f))
+            }
+        }
+
+        // 2. Embedded Matrix Proteins at r = 80f
+        atoms.add(Atom3D("E1", "Envelope E-Channel", radEnvelope * cos(0.2f), 15f, radEnvelope * sin(0.2f), sizeDp = 11f, color = BioGreen, desc = "Pentameric channel membrane protein supporting virion formation.", elementSymbol = "E"))
+        atoms.add(Atom3D("E2", "Envelope E-Channel", radEnvelope * cos(2.3f), -20f, radEnvelope * sin(2.3f), sizeDp = 11f, color = BioGreen, desc = "Envelope membrane pore channel.", elementSymbol = "E"))
+        
+        atoms.add(Atom3D("M1", "Membrane M-Protein", radEnvelope * cos(1.0f), -35f, radEnvelope * sin(1.0f), sizeDp = 9f, color = BioBlue, desc = "Promotes membrane curvature & coordinates spike packing.", elementSymbol = "M"))
+        atoms.add(Atom3D("M2", "Membrane M-Protein", radEnvelope * cos(4.0f), 25f, radEnvelope * sin(4.0f), sizeDp = 9f, color = BioBlue, desc = "Organizes primary viral shell assembly.", elementSymbol = "M"))
+        atoms.add(Atom3D("M3", "Membrane M-Protein", radEnvelope * cos(5.2f), -5f, radEnvelope * sin(5.2f), sizeDp = 9f, color = BioBlue, desc = "Connects internal RNA matrix to the viral wall.", elementSymbol = "M"))
+
+        // 3. Trimeric Spike Glycoproteins with stalks (extending to r = 135f)
+        val spikeAngles = listOf(
+            Triple(0.2f, 0.4f, "S1"),
+            Triple(-0.4f, 1.2f, "S2"),
+            Triple(1.1f, -0.6f, "S3"),
+            Triple(-1.3f, -0.8f, "S4"),
+            Triple(2.2f, 1.8f, "S5"),
+            Triple(-2.1f, -2.2f, "S6")
+        )
+        spikeAngles.forEachIndexed { i, (theta, phi, sid) ->
+            val radSpike = 135f
+            val x0 = radSpike * sin(theta) * cos(phi)
+            val y0 = radSpike * sin(theta) * sin(phi)
+            val z0 = radSpike * cos(theta)
+
+            val wallX = radEnvelope * sin(theta) * cos(phi)
+            val wallY = radEnvelope * sin(theta) * sin(phi)
+            val wallZ = radEnvelope * cos(theta)
+
+            val color = if (i == 3) BioTeal else BioCoral
+            val isRbdUp = i == 0 || i == 3
+            val name = if (isRbdUp) "Spike S1 (RBD Active UP)" else "Spike S1 (RBD DOWN)"
+            val desc = if (i == 3) {
+                "Bound with high-affinity to human lung cellular ACE2 receptor."
+            } else if (isRbdUp) {
+                "Active receptor-binding domain pointing upwards, primed for host cell fusion."
+            } else {
+                "Receptor binding domain in down conformation, shielded from human antibody detection."
+            }
+
+            val baseId = "S_BASE_$i"
+            atoms.add(Atom3D(baseId, "$sid Anchor", wallX, wallY, wallZ, sizeDp = 4f, color = color.copy(alpha = 0.5f), desc = "Spike stalk base embedding into viral lipid envelope."))
+            
+            atoms.add(
+                Atom3D(
+                    id = sid,
+                    name = name,
+                    x = x0, y = y0, z = z0,
+                    sizeDp = 14f,
+                    color = color,
+                    desc = desc,
+                    elementSymbol = "S"
+                )
+            )
+
+            bonds.add(Bond3D(baseId, sid, color = color.copy(alpha = 0.6f), thicknessDp = 3f))
+        }
+
+        return VisualStructure(
+            id = "sars_cov_2",
+            name = "SARS-CoV-2 (COVID-19)",
+            category = "VIRUS",
+            subtitle = "Enveloped Coronaviridae Virion Assembly",
+            description = "Severe acute respiratory syndrome coronavirus 2 (SARS-CoV-2) is an enveloped, positive-sense, single-stranded RNA virus. It triggers respiratory diseases via Spike-ACE2 binding checkpoints.",
+            pdbReference = "6VSB / 5X29",
+            atoms = atoms,
+            bonds = bonds,
+            baseEnvelopeRadiusDp = 80f,
+            envelopeColor = BorderColor.copy(alpha = 0.4f)
+        )
+    }
+
+    private fun generateInfluenza(): VisualStructure {
+        val atoms = mutableListOf<Atom3D>()
+        val bonds = mutableListOf<Bond3D>()
+        val radEnvelope = 80f
+
+        // 1. Segmented RNA core strings (4 parallel loops of bead-on-a-string RNA)
+        val stringXs = listOf(-20f, -5f, 10f, 25f)
+        stringXs.forEachIndexed { sIdx, sx ->
+            for (bead in 1..5) {
+                val y = -45f + bead * 15f
+                val z = sin(bead * 1.2f + sIdx) * 15f
+                val bid = "INF_RNA_${sIdx}_$bead"
+                atoms.add(
+                    Atom3D(
+                        id = bid,
+                        name = "Segment ${sIdx + 1} RNA bead $bead",
+                        x = sx, y = y, z = z,
+                        sizeDp = 5.5f,
+                        color = BioGreen,
+                        desc = "Segregated genomic vRNA strand of Influenza A virus, encoding replication complexes.",
+                        elementSymbol = "vRNA"
+                    )
+                )
+                if (bead > 1) {
+                    bonds.add(Bond3D("INF_RNA_${sIdx}_${bead - 1}", bid, color = BioGreen.copy(alpha = 0.45f), thicknessDp = 1.3f))
+                }
+            }
+        }
+
+        // 2. M2 Proton Channels
+        atoms.add(Atom3D("M2_1", "M2 Proton Channel", radEnvelope * cos(1.5f), 10f, radEnvelope * sin(1.5f), sizeDp = 11f, color = BioCoral, desc = "Integral membrane proton channel crucial for viral uncoating upon entry.", elementSymbol = "M2"))
+        atoms.add(Atom3D("M2_2", "M2 Proton Channel", radEnvelope * cos(4.8f), -15f, radEnvelope * sin(4.8f), sizeDp = 11f, color = BioCoral, desc = "Proton selective pore channel model.", elementSymbol = "M2"))
+
+        // 3. HA (Hemagglutinin) Spikes (6 items, Orange/Amber)
+        val haAngles = listOf(
+            Triple(0.3f, 0.5f, "HA1"),
+            Triple(1.2f, -1.0f, "HA2"),
+            Triple(-1.1f, -0.6f, "HA3"),
+            Triple(2.3f, 2.5f, "HA4"),
+            Triple(-0.4f, 2.8f, "HA5"),
+            Triple(-2.2f, -1.3f, "HA6")
+        )
+        haAngles.forEachIndexed { i, (theta, phi, hid) ->
+            val radSpike = 135f
+            val x0 = radSpike * sin(theta) * cos(phi)
+            val y0 = radSpike * sin(theta) * sin(phi)
+            val z0 = radSpike * cos(theta)
+
+            val wallX = radEnvelope * sin(theta) * cos(phi)
+            val wallY = radEnvelope * sin(theta) * sin(phi)
+            val wallZ = radEnvelope * cos(theta)
+
+            atoms.add(Atom3D("HA_BASE_$i", "$hid Anchor", wallX, wallY, wallZ, sizeDp = 4f, color = BioAmber.copy(alpha = 0.4f), desc = "HA stalk membrane contact point."))
+            atoms.add(
+                Atom3D(
+                    id = hid,
+                    name = "Hemagglutinin Glycoprotein (HA)",
+                    x = x0, y = y0, z = z0,
+                    sizeDp = 13f,
+                    color = BioAmber,
+                    desc = "Mediates high-affinity binding to host sialic acid receptors to initiate infection.",
+                    elementSymbol = "HA"
+                )
+            )
+            bonds.add(Bond3D("HA_BASE_$i", hid, color = BioAmber.copy(alpha = 0.5f), thicknessDp = 2.5f))
+        }
+
+        // 4. NA (Neuraminidase) Spikes (4 items, Cyan/Teal)
+        val naAngles = listOf(
+            Triple(0.8f, 1.8f, "NA1"),
+            Triple(-1.4f, 0.4f, "NA2"),
+            Triple(1.9f, -2.4f, "NA3"),
+            Triple(-1.9f, -2.9f, "NA4")
+        )
+        naAngles.forEachIndexed { i, (theta, phi, nid) ->
+            val radSpike = 135f
+            val x0 = radSpike * sin(theta) * cos(phi)
+            val y0 = radSpike * sin(theta) * sin(phi)
+            val z0 = radSpike * cos(theta)
+
+            val wallX = radEnvelope * sin(theta) * cos(phi)
+            val wallY = radEnvelope * sin(theta) * sin(phi)
+            val wallZ = radEnvelope * cos(theta)
+
+            atoms.add(Atom3D("NA_BASE_$i", "$nid Anchor", wallX, wallY, wallZ, sizeDp = 4f, color = BioTeal.copy(alpha = 0.4f), desc = "NA membrane contact."))
+            atoms.add(
+                Atom3D(
+                    id = nid,
+                    name = "Neuraminidase Enzyme (NA)",
+                    x = x0, y = y0, z = z0,
+                    sizeDp = 13f,
+                    color = BioTeal,
+                    desc = "Exhibits enzymatic sialidase activity to cleave sialic bonds, enabling newly assembled virions to bud out and release.",
+                    elementSymbol = "NA"
+                )
+            )
+            bonds.add(Bond3D("NA_BASE_$i", nid, color = BioTeal.copy(alpha = 0.5f), thicknessDp = 2.5f))
+        }
+
+        return VisualStructure(
+            id = "influenza",
+            name = "Influenza (Flu Virus)",
+            category = "VIRUS",
+            subtitle = "Segmented Flu Enveloped Orthomyxoviridae",
+            description = "Enveloped Orthomyxoviridae pathogen containing a segmented negative-sense RNA genome. Its primary surface features are Hemagglutinin (HA) for cellular entry and Neuraminidase (NA) for viral particle release.",
+            pdbReference = "1RU7 / 2MK8",
+            atoms = atoms,
+            bonds = bonds,
+            baseEnvelopeRadiusDp = 80f,
+            envelopeColor = BorderColor.copy(alpha = 0.35f)
+        )
+    }
+
+    private fun generateAdenovirus(): VisualStructure {
+        val atoms = mutableListOf<Atom3D>()
+        val bonds = mutableListOf<Bond3D>()
+
+        // 12 Vertices of standard Icosahedron (Penton Bases) scaled to R = 72f
+        val g = 1.618034f
+        val r = 72f
+        val length = sqrt(1f + g * g)
+        val u = 1f / length * r
+        val v = g / length * r
+        
+        val vertexOffsets = listOf(
+            Offset3D(0f, u, v), Offset3D(0f, -u, v), Offset3D(0f, u, -v), Offset3D(0f, -u, -v),
+            Offset3D(u, v, 0f), Offset3D(-u, v, 0f), Offset3D(u, -v, 0f), Offset3D(-u, -v, 0f),
+            Offset3D(v, 0f, u), Offset3D(-v, 0f, u), Offset3D(v, 0f, -u), Offset3D(-v, 0f, -u)
+        )
+
+        // Add 12 Penton vertices in BioTeal
+        vertexOffsets.forEachIndexed { i, offset ->
+            val vid = "PENT_$i"
+            atoms.add(
+                Atom3D(
+                    id = vid,
+                    name = "Penton Base Capsomer $i",
+                    x = offset.x, y = offset.y, z = offset.z,
+                    sizeDp = 12f,
+                    color = BioTeal,
+                    desc = "Pentameric capsid capsomer located at the icosahedral vertices. Integrates tightly with protruding fiber receptors.",
+                    elementSymbol = "Penton"
+                )
+            )
+
+            // Add long antenna protruding fiber with receptor knob at 1.9x height
+            val mFactor = 1.9f
+            val knobId = "KNOB_$i"
+            atoms.add(
+                Atom3D(
+                    id = knobId,
+                    name = "Fiber Receptor Knob $i",
+                    x = offset.x * mFactor, y = offset.y * mFactor, z = offset.z * mFactor,
+                    sizeDp = 9f,
+                    color = BioCoral,
+                    desc = "Symmetric fiber antenna tip. Binds to host epithelial CAR receptors to dock viral payloads.",
+                    elementSymbol = "Knob"
+                )
+            )
+            bonds.add(Bond3D(vid, knobId, color = TextSecondary.copy(alpha = 0.45f), thicknessDp = 1.8f))
+        }
+
+        // Draw icosahedron structural bonds. Connect any two vertices that are neighbors (distance is 2 * u ~ 1.05 * r)
+        val toleranceMin = 1.0f * r
+        val toleranceMax = 1.15f * r
+        for (i in vertexOffsets.indices) {
+            val a = vertexOffsets[i]
+            for (j in (i + 1) until vertexOffsets.size) {
+                val b = vertexOffsets[j]
+                val dist = sqrt((a.x - b.x).pow(2) + (a.y - b.y).pow(2) + (a.z - b.z).pow(2))
+                if (dist in toleranceMin..toleranceMax) {
+                    bonds.add(Bond3D("PENT_$i", "PENT_$j", color = BioTeal.copy(alpha = 0.4f), thicknessDp = 2.5f))
+                }
+            }
+        }
+
+        // Centroid hexons
+        val faceCentroids = listOf(
+            Triple(0, 4, 8), Triple(0, 8, 9), Triple(0, 9, 1), Triple(0, 1, 4), Triple(4, 10, 8)
+        )
+        faceCentroids.forEachIndexed { idx, (v1, v2, v3) ->
+            val o1 = vertexOffsets[v1]
+            val o2 = vertexOffsets[v2]
+            val o3 = vertexOffsets[v3]
+            val cx = (o1.x + o2.x + o3.x) / 3f
+            val cy = (o1.y + o2.y + o3.y) / 3f
+            val cz = (o1.z + o2.z + o3.z) / 3f
+            atoms.add(Atom3D("HEX_$idx", "Hexon Face Glycoprotein $idx", cx, cy, cz, sizeDp = 7.5f, color = BioBlue.copy(alpha = 0.8f), desc = "Trimeric hexon capsomer constituent forming the main triangular facet plates of the non-enveloped capsid."))
+        }
+
+        return VisualStructure(
+            id = "adenovirus",
+            name = "Adenovirus",
+            category = "VIRUS",
+            subtitle = "dsDNA Non-Enveloped Icosahedral Capsid",
+            description = "Adenoviruses are medium-sized, non-enveloped double-stranded DNA viruses equipped with a regular icosadeltahedral protein capsid shell. Each of the 12 vertices supports a protruding antenna fiber used to bind host CAR receptors.",
+            pdbReference = "1N11 / 6SMM",
+            atoms = atoms,
+            bonds = bonds
+        )
+    }
+
+    private fun generateBacteriophage(): VisualStructure {
+        val atoms = mutableListOf<Atom3D>()
+        val bonds = mutableListOf<Bond3D>()
+
+        // 1. Phage Head: Hexagonal Bipyramid Capsid shifted upwards (y = -95f)
+        val headY = -95f
+        atoms.add(Atom3D("PH_TOP", "Icosahedral Head Apex", 0f, headY - 45f, 0f, sizeDp = 10f, color = BioTeal, desc = "Top vertex of the oblate icosahedral head capsid holding dsDNA.", elementSymbol = "Apex"))
+        
+        val headR = 30f
+        val ringNodes = mutableListOf<String>()
+        for (i in 0 until 6) {
+            val angle = i * (2 * PI.toFloat() / 6)
+            val rx = headR * cos(angle)
+            val rz = headR * sin(angle)
+            val bid = "PH_RING_$i"
+            ringNodes.add(bid)
+            atoms.add(
+                Atom3D(
+                    id = bid,
+                    name = "Capsid facet vertex $i",
+                    x = rx, y = headY, z = rz,
+                    sizeDp = 8f,
+                    color = BioTeal,
+                    desc = "Crystalline major capsid protein gp23 vertex composing the head shell.",
+                    elementSymbol = "gp23"
+                )
+            )
+            bonds.add(Bond3D("PH_TOP", bid, color = BioTeal.copy(alpha = 0.5f), thicknessDp = 2f))
+            if (i > 0) {
+                bonds.add(Bond3D("PH_RING_${i - 1}", bid, color = BioTeal.copy(alpha = 0.4f), thicknessDp = 1.8f))
+            }
+        }
+        bonds.add(Bond3D("PH_RING_5", "PH_RING_0", color = BioTeal.copy(alpha = 0.4f), thicknessDp = 1.8f))
+
+        atoms.add(Atom3D("PH_NECK", "Capsid Neck (gp10)", 0f, headY + 35f, 0f, sizeDp = 11f, color = BioCoral, desc = "Junction collar interface containing gp10 neck stopper matching capsid to tail sheaths.", elementSymbol = "gp10"))
+        ringNodes.forEach { bid ->
+            bonds.add(Bond3D(bid, "PH_NECK", color = BioTeal.copy(alpha = 0.5f), thicknessDp = 2f))
+        }
+
+        // 2. Contractile Sheath Tail
+        val sheathYStart = headY + 35f // -60f
+        val sheathYEnd = 20f
+        val steps = 4
+        val sheathNodes = mutableListOf<String>()
+        for (s in 0..steps) {
+            val sy = sheathYStart + s * ((sheathYEnd - sheathYStart) / steps)
+            val sid = "PH_SHEATH_$s"
+            sheathNodes.add(sid)
+            atoms.add(
+                Atom3D(
+                    id = sid,
+                    name = "Contractile Tail Segment $s",
+                    x = 0f, y = sy, z = 0f,
+                    sizeDp = 13f,
+                    color = BioTeal,
+                    desc = "Helical contractile protein sheath gp18 wraps internal injector tube gp19.",
+                    elementSymbol = "gp18"
+                )
+            )
+            if (s > 0) {
+                bonds.add(Bond3D("PH_SHEATH_${s - 1}", sid, color = BioTeal, thicknessDp = 3.5f))
+            }
+        }
+
+        // 3. Spiked Baseplate at y = 20f
+        atoms.add(Atom3D("PH_BASEPLATE", "Baseplate Center (gp48)", 0f, sheathYEnd, 0f, sizeDp = 15f, color = BioCoral, desc = "Multi-protein atomic landing gear triggered during host adsorption.", elementSymbol = "Base"))
+        bonds.add(Bond3D(sheathNodes.last(), "PH_BASEPLATE", color = BioCoral, thicknessDp = 4f))
+
+        val pinR = 20f
+        val pinNodes = mutableListOf<String>()
+        for (j in 0 until 6) {
+            val angle = j * (2 * PI.toFloat() / 6)
+            val px = pinR * cos(angle)
+            val pz = pinR * sin(angle)
+            val pid = "PH_PIN_$j"
+            pinNodes.add(pid)
+            atoms.add(Atom3D(pid, "Baseplate Adsorption Pin $j", px, sheathYEnd + 4f, pz, sizeDp = 9f, color = BioAmber, desc = "Highly selective baseplate pins gp11 which anchors to host walls.", elementSymbol = "gp11"))
+            bonds.add(Bond3D("PH_BASEPLATE", pid, color = BioAmber.copy(alpha = 0.6f), thicknessDp = 2.5f))
+            
+            val ex = px * 2.3f
+            val ey = sheathYEnd + 25f
+            val ez = pz * 2.3f
+            val eId = "PH_ELBOW_$j"
+            atoms.add(Atom3D(eId, "Tail Fiber Elbow $j", ex, ey, ez, sizeDp = 7f, color = BioGreen, desc = "High-tensile joint of long tail fiber gp37."))
+            bonds.add(Bond3D(pid, eId, color = BioGreen.copy(alpha = 0.5f), thicknessDp = 2f))
+
+            val fx = px * 3.2f
+            val fy = sheathYEnd + 65f
+            val fz = pz * 3.2f
+            val fId = "PH_FOOT_$j"
+            atoms.add(Atom3D(fId, "Tail Fiber Terminal Foot $j", fx, fy, fz, sizeDp = 5f, color = BioGreen, desc = "Receptor lipopolysaccharide interactive fibers."))
+            bonds.add(Bond3D(eId, fId, color = BioGreen.copy(alpha = 0.5f), thicknessDp = 1.8f))
+        }
+
+        return VisualStructure(
+            id = "bacteriophage",
+            name = "Bacteriophage T4",
+            category = "VIRUS",
+            subtitle = "Nano-Injective Caudoviricetes Myoviridae",
+            description = "Bacteriophage T4 is a double-stranded DNA virus that targets Escherichia coli bacterial hosts. It operates like a nano-syringe, utilizing flexible tail fibers (landing gears) to ground, pins to dock, sheaths to contract and inject genomic DNA core.",
+            pdbReference = "5Y1B / 3JA4",
+            atoms = atoms,
+            bonds = bonds
+        )
+    }
+
+    private fun generateGraphene(): VisualStructure {
+        val atoms = mutableListOf<Atom3D>()
+        val bonds = mutableListOf<Bond3D>()
+        var idCounter = 0
+        
+        for (row in -2..2) {
+            for (col in -2..2) {
+                val x = col * 38f + (if (abs(row) % 2 == 1) 19f else 0f)
+                val y = row * 33f
+                val z = sin(col * 0.9f) * 4f
+                val id = "GRAPH_C_$idCounter"
+                atoms.add(
+                    Atom3D(
+                        id = id,
+                        name = "C-sp2 Carbon Atom",
+                        x = x, y = y, z = z,
+                        sizeDp = 11f,
+                        color = BioGreen,
+                        desc = "Atom-thin flat sp² carbon carbon lattice vertex. Three planar bonds create robust covalent shields.",
+                        elementSymbol = "C"
+                    )
+                )
+                idCounter++
+            }
+        }
+
+        for (i in atoms.indices) {
+            val a = atoms[i]
+            for (j in (i + 1) until atoms.size) {
+                val b = atoms[j]
+                val dist = sqrt((a.x - b.x).pow(2) + (a.y - b.y).pow(2) + (a.z - b.z).pow(2))
+                if (dist in 24f..41f) {
+                    bonds.add(Bond3D(a.id, b.id, color = BioGreen.copy(alpha = 0.7f), thicknessDp = 2.5f))
+                }
+            }
+        }
+
+        return VisualStructure(
+            id = "graphene",
+            name = "Graphene Sheet",
+            category = "MATERIAL",
+            subtitle = "2D Hexagonal Carbon Honeycomb Lattice",
+            description = "Graphene is a planar allotrope of carbon arranged in a single-atom thin hexagonal honeycomb lattice. It supports extreme electron mobility, super-tensile load tolerance, and thermal conductance.",
+            pdbReference = "N/A (Crystalline Allotrope)",
+            atoms = atoms,
+            bonds = bonds
+        )
+    }
+
+    private fun generateNanotube(): VisualStructure {
+        val atoms = mutableListOf<Atom3D>()
+        val bonds = mutableListOf<Bond3D>()
+        var idCounter = 0
+        val rings = 4
+        val itemsPerRing = 6
+        val radius = 45f
+        val heightStep = 32f
+
+        for (r in 0 until rings) {
+            val y = -50f + r * heightStep
+            val angleOffset = if (r % 2 == 1) PI.toFloat() / itemsPerRing else 0f
+            for (a in 0 until itemsPerRing) {
+                val angle = a * (2 * PI.toFloat() / itemsPerRing) + angleOffset
+                val x = radius * cos(angle)
+                val z = radius * sin(angle)
+                val id = "NT_C_$idCounter"
+                atoms.add(
+                    Atom3D(
+                        id = id,
+                        name = "Carbon SWCNT Node",
+                        x = x, y = y, z = z,
+                        sizeDp = 10.5f,
+                        color = BioTeal,
+                        desc = "Carbon atom embedded in single-walled carbon nanotube (SWCNT) walls.",
+                        elementSymbol = "C"
+                    )
+                )
+                idCounter++
+            }
+        }
+
+        for (i in atoms.indices) {
+            val a = atoms[i]
+            for (j in (i + 1) until atoms.size) {
+                val b = atoms[j]
+                val dist = sqrt((a.x - b.x).pow(2) + (a.y - b.y).pow(2) + (a.z - b.z).pow(2))
+                if (dist in 26f..49f) {
+                    bonds.add(Bond3D(a.id, b.id, color = BioTeal.copy(alpha = 0.62f), thicknessDp = 2f))
+                }
+            }
+        }
+
+        return VisualStructure(
+            id = "nanotube",
+            name = "Carbon Nanotube",
+            category = "MATERIAL",
+            subtitle = "1D Armchair Single-Walled Cylindrical Tube",
+            description = "Carbon Nanotubes (CNTs) are cylindrical molecules consisting of rolled-up Graphene sheets. They have extraordinary mechanical strengths, high electrical current density thresholds, and act as nanoscale conduits.",
+            pdbReference = "N/A (SWCNT Molecule)",
+            atoms = atoms,
+            bonds = bonds
+        )
+    }
+
+    private fun generateSilicon(): VisualStructure {
+        val atoms = mutableListOf<Atom3D>()
+        val bonds = mutableListOf<Bond3D>()
+        
+        atoms.add(
+            Atom3D(
+                id = "SI_CORE",
+                name = "Silicon Core Atom (Si)",
+                x = 0f, y = 0f, z = 0f,
+                sizeDp = 16f,
+                color = BioGreen,
+                desc = "Pure Silicon atom with 4 outer valence electrons displaying sp³ covalent geometry.",
+                elementSymbol = "Si"
+            )
+        )
+
+        val primaryOffsets = listOf(
+            Offset3D(28f, 28f, 28f),
+            Offset3D(-28f, -28f, 28f),
+            Offset3D(-28f, 28f, -28f),
+            Offset3D(28f, -28f, -28f)
+        )
+        primaryOffsets.forEachIndexed { i, offset ->
+            val pId = "SI_P_$i"
+            atoms.add(
+                Atom3D(
+                    id = pId,
+                    name = "Tetrahedral Silicon Node",
+                    x = offset.x, y = offset.y, z = offset.z,
+                    sizeDp = 12.5f,
+                    color = BioTeal,
+                    desc = "Primary covalent diamond lattice junction Silicon atom.",
+                    elementSymbol = "Si"
+                )
+            )
+            bonds.add(Bond3D("SI_CORE", pId, color = BioTeal.copy(alpha = 0.7f), thicknessDp = 3f))
+
+            val subBranches = when (i) {
+                0 -> listOf(Offset3D(56f, 28f, 15f), Offset3D(28f, 56f, 15f), Offset3D(28f, 28f, 56f))
+                1 -> listOf(Offset3D(-56f, -28f, 15f), Offset3D(-28f, -56f, 15f), Offset3D(-28f, -28f, 56f))
+                2 -> listOf(Offset3D(-56f, 28f, -15f), Offset3D(-28f, 56f, -15f), Offset3D(-28f, 28f, -56f))
+                else -> listOf(Offset3D(56f, -28f, -15f), Offset3D(28f, -56f, -15f), Offset3D(28f, -28f, -56f))
+            }
+            subBranches.forEachIndexed { j, sub ->
+                val sbId = "SI_S_${i}_$j"
+                atoms.add(
+                    Atom3D(
+                        id = sbId,
+                        name = "Boundary Silicon Covalent Projection",
+                        x = sub.x, y = sub.y, z = sub.z,
+                        sizeDp = 9f,
+                        color = BioBlue,
+                        desc = "Crystalline surface Silicon shell interface completing semiconductor lattice units.",
+                        elementSymbol = "Si"
+                    )
+                )
+                bonds.add(Bond3D(pId, sbId, color = BioBlue.copy(alpha = 0.45f), thicknessDp = 1.8f))
+            }
+        }
+
+        return VisualStructure(
+            id = "silicon",
+            name = "Silicon Crystal Lattice",
+            category = "MATERIAL",
+            subtitle = "Tetrahedral Diamond Cubic Semiconductor Unit",
+            description = "Silicon forms standard tetrahedral covalent arrays within a regular diamond cubic crystal structure. These pure, rigid structures serve as the ultimate substrate for semiconductor electronics, microchips, and diode channels.",
+            pdbReference = "N/A (Semiconductor Substrate)",
+            atoms = atoms,
+            bonds = bonds
+        )
+    }
+
+    private fun generateNaCl(): VisualStructure {
+        val atoms = mutableListOf<Atom3D>()
+        val bonds = mutableListOf<Bond3D>()
+        var idCounter = 0
+        val ionSpacing = 45f
+
+        for (i in -1..1) {
+            for (j in -1..1) {
+                for (k in -1..1) {
+                    val sumCoord = i + j + k
+                    val isChlorine = sumCoord % 2 == 0 
+                    val x = i * ionSpacing
+                    val y = j * ionSpacing
+                    val z = k * ionSpacing
+                    val id = "ION_$idCounter"
+
+                    val size = if (isChlorine) 15f else 11f
+                    val color = if (isChlorine) BioCoral else BioTeal
+                    val name = if (isChlorine) "Chlorine Anion (Cl-)" else "Sodium Cation (Na+)"
+                    val symbol = if (isChlorine) "Cl-" else "Na+"
+                    val desc = if (isChlorine) {
+                        "Chloride anion (Cl-) with a full outer valence shell of 18 electrons, yielding high ionic volume."
+                    } else {
+                        "Sodium cation (Na+) with its outer shell electron completely donated, yielding compact positive charge."
+                    }
+
+                    atoms.add(
+                        Atom3D(
+                            id = id,
+                            name = name,
+                            x = x, y = y, z = z,
+                            sizeDp = size,
+                            color = color,
+                            desc = desc,
+                            elementSymbol = symbol
+                        )
+                    )
+                    idCounter++
+                }
+            }
+        }
+
+        for (i in 0 until 27) {
+            val a = atoms[i]
+            for (j in (i + 1) until 27) {
+                val b = atoms[j]
+                val dist = sqrt((a.x - b.x).pow(2) + (a.y - b.y).pow(2) + (a.z - b.z).pow(2))
+                if (dist in (ionSpacing - 3f)..(ionSpacing + 3f)) {
+                    bonds.add(Bond3D(a.id, b.id, color = BorderColor.copy(alpha = 0.55f), thicknessDp = 2f))
+                }
+            }
+        }
+
+        return VisualStructure(
+            id = "nacl",
+            name = "Sodium Chloride (NaCl)",
+            category = "MATERIAL",
+            subtitle = "Alternating Ionic Face-Centered Cubic Halite Crystal",
+            description = "Sodium Chloride (Common Salt) is the canonical model of strong ionic lattices. Positively-charged Sodium (Na+) ions and negatively-charged Chlorine (Cl-) ions alternate along strict perpendicular coordinates, held by high electrostatic forces.",
+            pdbReference = "Halite Lattice Compound",
+            atoms = atoms,
+            bonds = bonds
+        )
+    }
+}
 
 // ==========================================
 // VIEWMODEL FOR BUSINESS LOGIC & CHAT
@@ -166,13 +854,19 @@ data class Spike3D(
 class SarcovViewModel : ViewModel() {
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(
         listOf(
-            ChatMessage("welcome", "Hello! I am your SARCOV AI Scientific Assistant. I am trained on Nurcholish Adam's SARS-CoV-2 3D Knowledge Graph system architecture (https://github.com/NurcholishAdam/SARS-CoV-2-3D-Knowledge-Graph-1).\n\nAsk me anything about Neo4j Cypher queries, Protein structures (Spike, Envelope), variants like Omicron, or how the spatial processing pipeline works!", false)
+            ChatMessage("welcome", "Hello! I am your SARCOV AI Scientific Assistant. I am trained on Nurcholish Adam's SARS-CoV-2 3D Knowledge Graph system architecture (https://github.com/NurcholishAdam/SARS-CoV-2-3D-Knowledge-Graph).\n\nAsk me anything about Neo4j Cypher queries, Protein structures (Spike, Envelope), variants like Omicron, or how the spatial processing pipeline works!", false)
         )
     )
     val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
 
     private val _isChatLoading = MutableStateFlow(false)
     val isChatLoading: StateFlow<Boolean> = _isChatLoading.asStateFlow()
+
+    private val _selectedTab = MutableStateFlow(0)
+    val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
+
+    private val _selectedStructureId = MutableStateFlow("spike")
+    val selectedStructureId: StateFlow<String> = _selectedStructureId.asStateFlow()
 
     // Interactive custom cypher console simulation query
     private val _currentCypherFilter = MutableStateFlow("MATCH (n) RETURN n")
@@ -182,6 +876,14 @@ class SarcovViewModel : ViewModel() {
         _currentCypherFilter.value = query
     }
 
+    fun selectTab(index: Int) {
+        _selectedTab.value = index
+    }
+
+    fun selectStructure(structureId: String) {
+        _selectedStructureId.value = structureId
+    }
+
     fun sendChatMessage(text: String) {
         if (text.isBlank()) return
         val userMsgId = System.currentTimeMillis().toString()
@@ -189,8 +891,52 @@ class SarcovViewModel : ViewModel() {
         _isChatLoading.value = true
 
         viewModelScope.launch {
+            // Check context keywords for automatic visualization tab switching
+            val lowerPrompt = text.lowercase()
+            var triggeredStructure: String? = null
+            var responseDetail = ""
+            
+            if (lowerPrompt.contains("spike") || lowerPrompt.contains("protein s")) {
+                triggeredStructure = "spike"
+                responseDetail = "Now highlighting **Spike Protein S (6VSB)** in the dataset explorer."
+            } else if (lowerPrompt.contains("envelope") || lowerPrompt.contains("protein e")) {
+                triggeredStructure = "env"
+                responseDetail = "Now highlighting **Envelope Protein E (5X29)** in the dataset explorer."
+            } else if (lowerPrompt.contains("membrane") || lowerPrompt.contains("protein m")) {
+                triggeredStructure = "memb"
+                responseDetail = "Now highlighting **Membrane Protein M (7MGS)** in the dataset explorer."
+            } else if (lowerPrompt.contains("rna") || lowerPrompt.contains("genome") || lowerPrompt.contains("genomic")) {
+                triggeredStructure = "rna"
+                responseDetail = "Now highlighting **Genomic RNA Sequence (MN908947)** in the dataset explorer."
+            } else if (lowerPrompt.contains("ace2") || lowerPrompt.contains("receptor")) {
+                triggeredStructure = "ace2"
+                responseDetail = "Now highlighting **Host Cell Receptor ACE2 (1R4L)** in the dataset explorer."
+            } else if (lowerPrompt.contains("tmpr") || lowerPrompt.contains("protease")) {
+                triggeredStructure = "tmpr"
+                responseDetail = "Now highlighting **TMPRSS2 Protease Enzyme (7Y10)** in the dataset explorer."
+            } else if (lowerPrompt.contains("remdesivir")) {
+                triggeredStructure = "remd"
+                responseDetail = "Now highlighting **Remdesivir Polymerase Inhibitor** in the dataset explorer."
+            } else if (lowerPrompt.contains("paxlovid")) {
+                triggeredStructure = "pax"
+                responseDetail = "Now highlighting **Paxlovid Protease Inhibitor** in the dataset explorer."
+            } else if (lowerPrompt.contains("omicron")) {
+                triggeredStructure = "omic"
+                responseDetail = "Now highlighting **Omicron Variant B.1.1.529** in the dataset explorer."
+            } else if (lowerPrompt.contains("delta")) {
+                triggeredStructure = "delt"
+                responseDetail = "Now highlighting **Delta Variant B.1.617.2** in the dataset explorer."
+            }
+
+            if (triggeredStructure != null) {
+                _selectedStructureId.value = triggeredStructure
+                _selectedTab.value = 1 // Switch to 3D structures tab
+            }
+
             val systemInstructions = """
                 You are "SARCOV AI Assistant", an expert bio-informatics agent designed to explain the system architecture of the SARS-CoV-2 3D Knowledge Graph project (created by researcher Nurcholish Adam).
+                The authoritative codebase and paper source repository is: https://github.com/NurcholishAdam/SARS-CoV-2-3D-Knowledge-Graph.
+                
                 The system consists of:
                 1. Data Source Layer: PDB atomic data and genomic strings.
                 2. ETL Parser Engine: Python extracting residues, chains, and 3D Euclidean distances between atoms.
@@ -210,7 +956,10 @@ class SarcovViewModel : ViewModel() {
             if (apiKey.isEmpty() || apiKey == "MY_GEMINI_API_KEY") {
                 // Return a highly elaborate simulated scientific response if key is missing
                 delay(1200)
-                val responseSimulated = simulateScientificAnswer(text)
+                var responseSimulated = simulateScientificAnswer(text)
+                if (triggeredStructure != null) {
+                    responseSimulated = "💡 **[Auto-Visualizer Activated]** $responseDetail\n\n$responseSimulated"
+                }
                 _chatMessages.value = _chatMessages.value + ChatMessage(
                     System.currentTimeMillis().toString(),
                     "⚠️ [Simulator Mode - API Key not set in Secrets Panel]\n\n" + responseSimulated,
@@ -229,8 +978,11 @@ class SarcovViewModel : ViewModel() {
                 val response = withContext(Dispatchers.IO) {
                     GeminiClient.api.generateContent(apiKey, req)
                 }
-                val rawText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                var rawText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
                     ?: "No scientific response could be resolved by the engine."
+                if (triggeredStructure != null) {
+                    rawText = "💡 **[Auto-Visualizer Activated]** $responseDetail\n\n$rawText"
+                }
                 _chatMessages.value = _chatMessages.value + ChatMessage(System.currentTimeMillis().toString(), rawText, false)
             } catch (e: Exception) {
                 _chatMessages.value = _chatMessages.value + ChatMessage(
@@ -333,11 +1085,11 @@ fun MainDashboard(
     modifier: Modifier = Modifier,
     viewModel: SarcovViewModel = viewModel()
 ) {
-    var selectedTab by remember { mutableStateOf(0) }
+    val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
     
     val tabs = listOf(
-        "🌐 Network Graph",
-        "🦠 3D Virion",
+        "🗃️ Dataset Explorer",
+        "🦠 Viral 3D Model",
         "🛰️ Architecture",
         "🤖 Gemini Assistant"
     )
@@ -387,21 +1139,56 @@ fun MainDashboard(
                     }
                 }
                 
-                // Status Lights
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(BioGreen, CircleShape)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "SYSTEM READY",
-                        fontSize = 10.sp,
-                        color = BioGreen,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = FontFamily.Monospace
-                    )
+                // Status Lights & GitHub Integration Card
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Card(
+                        onClick = {
+                            viewModel.selectTab(1) // Switch to Viral 3D Model tab
+                        },
+                        colors = CardDefaults.cardColors(containerColor = BioCoral.copy(alpha = 0.15f)),
+                        border = BorderStroke(1.dp, BioCoral.copy(alpha = 0.4f)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.testTag("virion_header_card")
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "Switch to Viral 3D Model",
+                                tint = BioCoral,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(
+                                text = "VIRAL 3D MODEL",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(BioGreen, CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "SYSTEM READY",
+                            fontSize = 10.sp,
+                            color = BioGreen,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
                 }
             }
         }
@@ -419,7 +1206,7 @@ fun MainDashboard(
             tabs.forEachIndexed { index, title ->
                 Tab(
                     selected = selectedTab == index,
-                    onClick = { selectedTab = index },
+                    onClick = { viewModel.selectTab(index) },
                     modifier = Modifier.testTag("tab_$index"),
                     text = {
                         Text(
@@ -440,8 +1227,8 @@ fun MainDashboard(
                 .fillMaxWidth()
         ) {
             when (selectedTab) {
-                0 -> NetworkGraphScreen(viewModel)
-                1 -> Virion3DScreen()
+                0 -> GraphDatasetScreen(viewModel)
+                1 -> Virion3DScreen(viewModel)
                 2 -> ArchitectureBlueprintsScreen()
                 3 -> GeminiChatScreen(viewModel)
             }
@@ -450,11 +1237,561 @@ fun MainDashboard(
 }
 
 // ==========================================
-// TAB 1: PHYSICS NETWORK GRAPH EXPLORER
+// TAB 1: KNOWLEDGE GRAPH DATASET EXPLORER
 // ==========================================
 
 @Composable
-fun NetworkGraphScreen(viewModel: SarcovViewModel) {
+fun GraphDatasetScreen(viewModel: SarcovViewModel) {
+    val cypherQuery by viewModel.currentCypherFilter.collectAsStateWithLifecycle()
+    val selectedStructureId by viewModel.selectedStructureId.collectAsStateWithLifecycle()
+
+    val nodesList = remember {
+        listOf(
+            GraphNode("RNA", "Genomic RNA Sequence", "GENOME", "Single-stranded viral RNA positive chain molecule.", "MN908947", "Sarcov viral genomic blueprint database reference.", 0f, 0f),
+            GraphNode("SPIKE", "Spike Protein (S)", "PROTEIN", "Protruding trimeric entry molecule essential for membrane fusion.", "6VSB", "Binds host cell ACE2 surface protein with high affinity.", 0f, 0f),
+            GraphNode("ENV", "Envelope Protein (E)", "PROTEIN", "Small vital membrane assembly channel component.", "5X29", "Facilitates viral budding, entry, and assembly phases.", 0f, 0f),
+            GraphNode("MEMB", "Membrane Protein (M)", "PROTEIN", "Most dominant viral shape component in capsid layer.", "7MGS", "Constructs virion envelope layer structure.", 0f, 0f),
+            GraphNode("ACE2", "Host ACE2 Receptor", "HOST", "Angiotensin-converting enzyme 2 human biological receptor.", "1R4L", "Active cellular entryway target for Spike binding.", 0f, 0f),
+            GraphNode("TMPR", "TMPRSS2 Protease", "HOST", "Host serine enzyme assisting viral cellular entry.", "7Y10", "Cleaves Spike peptide bonds to activate membrane fusion.", 0f, 0f),
+            GraphNode("REMD", "Remdesivir (RdRp Inhibitor)", "DRUG", "Adenosine analog viral RNA replication blocker.", "7BTF", "Inhibits viral replication cycle inside infected cells.", 0f, 0f),
+            GraphNode("PAX", "Paxlovid (Mpro Blocker)", "DRUG", "Antiviral combination protease processing inhibitor.", "7RFS", "Halts polyprotein cleavage stages during self-replication.", 0f, 0f),
+            GraphNode("OMIC", "Omicron variant (B.1.1.529)", "VARIANT", "Highly contagious spike-mutated strain of concern.", "7T9K", "Bypasses primary humoral immunity and vaccine bindings.", 0f, 0f),
+            GraphNode("DELT", "Delta variant (B.1.617.2)", "VARIANT", "Highly transmissive strain of global concern.", "7V8A", "Triggers superior viral replication efficiency.", 0f, 0f)
+        )
+    }
+
+    val edges = remember {
+        listOf(
+            GraphEdge("RNA", "SPIKE", "CODES_FOR"),
+            GraphEdge("RNA", "ENV", "CODES_FOR"),
+            GraphEdge("RNA", "MEMB", "CODES_FOR"),
+            GraphEdge("SPIKE", "ACE2", "BINDS_TO"),
+            GraphEdge("SPIKE", "TMPR", "PRIMED_BY"),
+            GraphEdge("REMD", "RNA", "INHIBITS"),
+            GraphEdge("PAX", "SPIKE", "INHIBITS"),
+            GraphEdge("OMIC", "SPIKE", "MUTATEST_TO"),
+            GraphEdge("DELT", "SPIKE", "MUTATEST_TO")
+        )
+    }
+
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("ALL") }
+
+    // Predefined Cypher templates
+    val queryTemplates = listOf(
+        "MATCH (n) RETURN n" to "Browse All Nodes",
+        "MATCH (p:Protein)-[:BINDS_TO]->(h:Host)" to "Spike pathways",
+        "MATCH (d:Drug)-[:INHIBITS]->(t)" to "Drug targets",
+        "MATCH (v:Variant)-[:MUTATEST_TO]->(s:Protein)" to "Mutation spikes"
+    )
+
+    // Filter nodes based on Cypher filter query
+    val cypherActiveNodeIds = remember(cypherQuery) {
+        val q = cypherQuery.lowercase()
+        when {
+            q.contains("binds_to") || q.contains("p, h") -> setOf("SPIKE", "ACE2", "TMPR")
+            q.contains("inhibits") || q.contains("d, t") -> setOf("REMD", "PAX", "RNA", "SPIKE")
+            q.contains("mutatest_to") || q.contains("v, s") -> setOf("OMIC", "DELT", "SPIKE")
+            else -> nodesList.map { it.id }.toSet()
+        }
+    }
+
+    // Filter nodes by active category selection and search bar text
+    val filteredNodes = remember(searchQuery, selectedCategory, cypherActiveNodeIds) {
+        nodesList.filter { node ->
+            val matchCypher = cypherActiveNodeIds.contains(node.id)
+            val matchCategory = selectedCategory == "ALL" || node.type == selectedCategory
+            val matchSearch = node.label.contains(searchQuery, ignoreCase = true) ||
+                    node.id.contains(searchQuery, ignoreCase = true) ||
+                    node.description.contains(searchQuery, ignoreCase = true)
+            matchCypher && matchCategory && matchSearch
+        }
+    }
+
+    // Determine current selected node details
+    val activeNodeSelected = nodesList.find { it.id.equals(selectedStructureId, ignoreCase = true) } 
+        ?: filteredNodes.firstOrNull() 
+        ?: nodesList.first()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkBg)
+            .padding(12.dp)
+    ) {
+        // App intro
+        Text(
+            text = "SARS-CoV-2 3D KNOWLEDGE GRAPH DATASET",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            fontFamily = FontFamily.Monospace,
+            modifier = Modifier.padding(bottom = 2.dp)
+        )
+        Text(
+            text = "Authoritative relational database coordinates mapped from Nurcholish Adam's PDB spatial research pipeline. Examine nodes, properties, and Neo4j relational bindings without rendering visual overhead.",
+            fontSize = 11.sp,
+            color = TextSecondary,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        // 1. Terminal Console & Cypher Controller
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            border = BorderStroke(1.dp, BorderColor)
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    text = "NEO4J CYPHER INTERFACE",
+                    fontSize = 10.sp,
+                    color = TerminalGreen,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                // Cypher quick query buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    queryTemplates.forEach { (queryCmd, label) ->
+                        val isSelectedQuery = queryCmd == cypherQuery
+                        Button(
+                            onClick = { viewModel.updateCypherFilter(queryCmd) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(32.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSelectedQuery) BioTeal.copy(alpha = 0.25f) else DarkCard,
+                                contentColor = if (isSelectedQuery) BioTeal else TextSecondary
+                            ),
+                            border = BorderStroke(1.dp, if (isSelectedQuery) BioTeal else BorderColor),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 9.sp,
+                                maxLines = 1,
+                                fontWeight = FontWeight.Bold,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Terminal box
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                        .border(BorderStroke(1.dp, BorderColor.copy(alpha = 0.6f)), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "neo4j@sarcov-graph-1:~$",
+                                fontSize = 10.sp,
+                                color = TerminalGreen,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = cypherQuery,
+                                fontSize = 10.sp,
+                                color = Color.White,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Query returned ${filteredNodes.size} dataset records matching criteria.",
+                            fontSize = 9.sp,
+                            color = BioTeal,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+            }
+        }
+
+        // 2. Search Box & Category Filters Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Text Search Input
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Search nodes, descriptions...", fontSize = 11.sp, color = TextSecondary) },
+                singleLine = true,
+                textStyle = TextStyle(fontSize = 11.sp, color = Color.White),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(46.dp)
+                    .testTag("node_dataset_search_bar"),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = BioTeal,
+                    unfocusedBorderColor = BorderColor,
+                    focusedContainerColor = DarkSurface,
+                    unfocusedContainerColor = DarkSurface
+                ),
+                shape = RoundedCornerShape(8.dp),
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search icon",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            )
+
+            // Category tag chips scrollbar
+            val categories = listOf("ALL", "GENOME", "PROTEIN", "HOST", "DRUG", "VARIANT")
+            androidx.compose.foundation.lazy.LazyRow(
+                modifier = Modifier.weight(1.2f),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(categories.size) { index ->
+                    val cat = categories[index]
+                    val isCatSelected = selectedCategory == cat
+                    Card(
+                        onClick = { selectedCategory = cat },
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isCatSelected) BioTeal.copy(alpha = 0.2f) else DarkCard
+                        ),
+                        border = BorderStroke(1.dp, if (isCatSelected) BioTeal else BorderColor),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.testTag("filter_chip_$cat")
+                    ) {
+                        Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                            Text(
+                                text = cat,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isCatSelected) Color.White else TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Grid / Split Master-Detail Layout
+        Row(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // LEFT COLUMN: Nodes list (scrollable)
+            androidx.compose.foundation.lazy.LazyColumn(
+                modifier = Modifier
+                    .weight(1.1f)
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (filteredNodes.isEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "No dataset nodes found",
+                                fontSize = 11.sp,
+                                color = TextSecondary,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "Try clearing the search or choosing 'ALL' filter.",
+                                fontSize = 10.sp,
+                                color = TextSecondary.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                } else {
+                    items(filteredNodes.size) { idx ->
+                        val node = filteredNodes[idx]
+                        val isNodeSelected = activeNodeSelected.id == node.id
+                        Card(
+                            onClick = { viewModel.selectStructure(node.id) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("nodecard_${node.id}"),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isNodeSelected) DarkSurface else DarkCard
+                            ),
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = if (isNodeSelected) BioTeal else BorderColor.copy(alpha = 0.6f)
+                            ),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = node.id,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = BioTeal,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        // Colored type pill
+                                        Box(
+                                            modifier = Modifier
+                                                .background(
+                                                    color = when (node.type) {
+                                                        "GENOME" -> BioCoral.copy(alpha = 0.2f)
+                                                        "PROTEIN" -> BioTeal.copy(alpha = 0.2f)
+                                                        "HOST" -> Color(0xFF1E88E5).copy(alpha = 0.2f)
+                                                        "DRUG" -> BioGreen.copy(alpha = 0.2f)
+                                                        else -> Color(0xFFAB47BC).copy(alpha = 0.2f)
+                                                    },
+                                                    shape = RoundedCornerShape(4.dp)
+                                                )
+                                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = node.type,
+                                                fontSize = 7.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = when (node.type) {
+                                                    "GENOME" -> BioCoral
+                                                    "PROTEIN" -> BioTeal
+                                                    "HOST" -> Color(0xFF90CAF9)
+                                                    "DRUG" -> BioGreen
+                                                    else -> Color(0xFFE1BEE7)
+                                                }
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = node.label,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = node.description,
+                                        fontSize = 10.sp,
+                                        color = TextSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Select node",
+                                    tint = if (isNodeSelected) BioTeal else TextSecondary.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // RIGHT COLUMN: Selected Node detail & relational connections panel
+            Card(
+                modifier = Modifier
+                    .weight(0.9f)
+                    .fillMaxHeight(),
+                colors = CardDefaults.cardColors(containerColor = DarkSurface),
+                border = BorderStroke(1.dp, BorderColor)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(10.dp)
+                ) {
+                    Text(
+                        text = "METADATA RECOGNITION PANEL",
+                        fontSize = 9.sp,
+                        color = BioCoral,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    // Node Title & Type details
+                    Text(
+                        text = activeNodeSelected.label.uppercase(),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+
+                    Row(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "GRAPH ID: " + activeNodeSelected.id,
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            color = BioTeal
+                        )
+                        if (activeNodeSelected.pdbId.isNotEmpty() && activeNodeSelected.pdbId != "N/A") {
+                            Text(
+                                text = "PDB ID: " + activeNodeSelected.pdbId,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = TextSecondary,
+                                modifier = Modifier
+                                    .background(Color.Black.copy(alpha = 0.3f), RoundedCornerShape(2.dp))
+                                    .padding(horizontal = 3.dp, vertical = 1.dp)
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = BorderColor.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 6.dp))
+
+                    // Node Biological Description
+                    Text(
+                        text = "BIOLOGY PROPERTIES",
+                        fontSize = 8.sp,
+                        color = TextSecondary,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                    Text(
+                        text = activeNodeSelected.description,
+                        fontSize = 10.sp,
+                        color = Color.White,
+                        lineHeight = 13.sp
+                    )
+
+                    if (activeNodeSelected.details.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "DATABASE KNOWLEDGE DETAILS",
+                            fontSize = 8.sp,
+                            color = TextSecondary,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
+                        Text(
+                            text = activeNodeSelected.details,
+                            fontSize = 10.sp,
+                            color = BioTeal,
+                            lineHeight = 13.sp
+                        )
+                    }
+
+                    HorizontalDivider(color = BorderColor.copy(alpha = 0.5f), modifier = Modifier.padding(vertical = 6.dp))
+
+                    // Adjacent edges graph dataset view
+                    Text(
+                        text = "NEO4J SCHEMA RELATIONSHIPS",
+                        fontSize = 8.sp,
+                        color = TextSecondary,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+
+                    val relatedEdges = edges.filter { it.sourceId == activeNodeSelected.id || it.targetId == activeNodeSelected.id }
+
+                    if (relatedEdges.isEmpty()) {
+                        Text(
+                            text = "No relationships configured for this index in the current Neo4j pipeline.",
+                            fontSize = 10.sp,
+                            color = TextSecondary.copy(alpha = 0.8f),
+                            fontStyle = FontStyle.Italic
+                        )
+                    } else {
+                        androidx.compose.foundation.lazy.LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            items(relatedEdges.size) { eIdx ->
+                                val edge = relatedEdges[eIdx]
+                                val isOutgoing = edge.sourceId == activeNodeSelected.id
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                        .border(BorderStroke(0.5.dp, BorderColor.copy(alpha = 0.4f)), RoundedCornerShape(4.dp))
+                                        .padding(6.dp)
+                                ) {
+                                    Column {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isOutgoing) Icons.Default.ArrowForward else Icons.Default.PlayArrow,
+                                                contentDescription = if (isOutgoing) "Outgoing link" else "Incoming link",
+                                                tint = if (isOutgoing) BioTeal else BioCoral,
+                                                modifier = Modifier.size(11.dp)
+                                            )
+                                            Text(
+                                                text = if (isOutgoing) "OUTGOING: -${edge.relation}->" else "INCOMING: <-${edge.relation}-",
+                                                fontSize = 8.sp,
+                                                fontFamily = FontFamily.Monospace,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isOutgoing) BioTeal else BioCoral
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = if (isOutgoing) {
+                                                "Target: " + (nodesList.find { it.id == edge.targetId }?.label ?: edge.targetId)
+                                            } else {
+                                                "Source: " + (nodesList.find { it.id == edge.sourceId }?.label ?: edge.sourceId)
+                                            },
+                                            fontSize = 9.sp,
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ==========================================
+// TAB 1: PHYSICS NETWORK GRAPH EXPLORER (DEPRECATED/KEPT TO REDUCE EDIT SCALE)
+// ==========================================
+
+@Composable
+fun OldNetworkGraphScreen(viewModel: SarcovViewModel) {
     // Collect the dynamic cypher filter state
     val cypherQuery by viewModel.currentCypherFilter.collectAsStateWithLifecycle()
 
@@ -1053,32 +2390,40 @@ fun NetworkGraphScreen(viewModel: SarcovViewModel) {
 // TAB 2: INTERACTIVE 3D VIRION STRUCTURAL MODEL
 // ==========================================
 
+data class ProjectedAtom(
+    val atom: Atom3D,
+    val px: Float,
+    val py: Float,
+    val depthZ: Float,
+    val renderSize: Float
+)
+
 @Composable
-fun Virion3DScreen() {
-    // 3D rotation states for the virus sphere
-    var rotX by remember { mutableStateOf(-0.3f) } // Rad angles
-    var rotY by remember { mutableStateOf(0.4f) }
+fun Virion3DScreen(viewModel: SarcovViewModel = viewModel()) {
+    val selectedStructureId by viewModel.selectedStructureId.collectAsStateWithLifecycle()
+    val structure = remember(selectedStructureId) { StructureLibrary.getStructure(selectedStructureId) }
 
-    // Resolve pre-allocated scale factors to avoid coroutine suspension resolving bugs
-    val density = LocalDensity.current
-    val hitDistPx = remember(density) { with(density) { 30.dp.toPx() } }
-
-    // List of structural elements protruding from the nucleocapsid
-    val spikes = remember {
-        listOf(
-            Spike3D("S1", "Spike 1 (Pre-fusion)", 0.2f, 0.4f, pdbId = "6VSB", desc = "Active receptor binding domain (RBD) pointing UP.", color = BioCoral),
-            Spike3D("S2", "Spike 2 (RBD down)", -0.4f, 1.2f, pdbId = "6VSB", desc = "RBD domain in DOWN conformation, avoiding host antibodies.", color = BioCoral),
-            Spike3D("S3", "Spike 3 (Active fusion)", 1.1f, -0.6f, pdbId = "6VSB", desc = "Engaging target human tissue cells.", color = BioCoral),
-            Spike3D("S4", "Spike 4 (Target bound)", -1.3f, -0.8f, pdbId = "6VSB", desc = "Bound with high affinity to host ACE2 protein.", color = BioTeal),
-            Spike3D("E1", "Envelope E-Channel", 0.5f, 2.3f, pdbId = "5X29", desc = "Pentameric channel membrane protein assisting virion formation.", color = BioGreen),
-            Spike3D("E2", "Envelope E-Channel", -0.8f, 2.8f, pdbId = "5X29", desc = "Pentameric pore. Targets of active therapeutic research.", color = BioGreen),
-            Spike3D("M1", "M-Protein Matrix", 1.8f, -2.1f, pdbId = "7MGS", desc = "Gives the SARS virus envelope its canonical oval frame.", color = BioBlue),
-            Spike3D("M2", "M-Protein Matrix", -1.9f, 0.5f, pdbId = "7MGS", desc = "Binds secondary envelope sections together.", color = BioBlue),
-            Spike3D("RNA_CORE", "Encapsulated Nucleocapsid RNA", 0f, 0f, radius = 0f, pdbId = "6M3M", desc = "Internal single-stranded RNA string wrapped in Nucleocapsid polymers.", color = BioGreen)
-        )
+    var activeCategory by remember { mutableStateOf("VIRUS") }
+    
+    // Automatically synchronize category UI segment based on externally updated selection ID
+    LaunchedEffect(selectedStructureId) {
+        val struct = StructureLibrary.getStructure(selectedStructureId)
+        if (struct.category != activeCategory) {
+            activeCategory = struct.category
+        }
     }
 
-    var activeSpikeDetail by remember { mutableStateOf<Spike3D?>(spikes[0]) }
+    // Reset default active element details smoothly on structural entity switch
+    var activeAtomDetail by remember(selectedStructureId) {
+        mutableStateOf(structure.atoms.firstOrNull())
+    }
+
+    // 3D rotation angle coordinates
+    var rotX by remember { mutableStateOf(-0.3f) }
+    var rotY by remember { mutableStateOf(0.4f) }
+
+    val density = LocalDensity.current
+    val hitDistPx = remember(density) { with(density) { 30.dp.toPx() } }
 
     Column(
         modifier = Modifier
@@ -1089,7 +2434,7 @@ fun Virion3DScreen() {
     ) {
         // Explanatory label
         Text(
-            text = "3D VIRAL MOLECULAR ASSEMBLY",
+            text = "3D SCIENTIFIC VISUALIZATION",
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White,
@@ -1098,7 +2443,7 @@ fun Virion3DScreen() {
             textAlign = TextAlign.Start
         )
         Text(
-            text = "Animate, pan, or swipe to rotate the coordinates of the SARS-CoV-2 protein capsid structures. Click individual proteins to check atomic configurations.",
+            text = "Animate, swipe, or rotate complex biomolecular capsid shells or advanced semiconductor crystals. Hover or tap atoms to examine precise valence coordinate bindings.",
             fontSize = 11.sp,
             color = TextSecondary,
             modifier = Modifier
@@ -1107,169 +2452,310 @@ fun Virion3DScreen() {
             textAlign = TextAlign.Start
         )
 
-        // 3D Canvas Box container
+        // 1. Double interactive visual category selection card bars
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Card(
+                onClick = { activeCategory = "VIRUS" },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (activeCategory == "VIRUS") BioTeal.copy(alpha = 0.15f) else DarkSurface
+                ),
+                border = BorderStroke(1.dp, if (activeCategory == "VIRUS") BioTeal else BorderColor),
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(modifier = Modifier.padding(8.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "🦠 Bio-Viruses",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (activeCategory == "VIRUS") BioTeal else TextSecondary
+                    )
+                }
+            }
+
+            Card(
+                onClick = { activeCategory = "MATERIAL" },
+                colors = CardDefaults.cardColors(
+                    containerColor = if (activeCategory == "MATERIAL") BioTeal.copy(alpha = 0.15f) else DarkSurface
+                ),
+                border = BorderStroke(1.dp, if (activeCategory == "MATERIAL") BioTeal else BorderColor),
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(modifier = Modifier.padding(8.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "💎 Nano-Materials",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (activeCategory == "MATERIAL") BioTeal else TextSecondary
+                    )
+                }
+            }
+        }
+
+        // 2. Row of Chip switches
+        val categoryStructures = remember(activeCategory) {
+            if (activeCategory == "VIRUS") {
+                listOf(
+                    "sars_cov_2" to "SARS-CoV-2",
+                    "influenza" to "Influenza A",
+                    "adenovirus" to "Adenovirus",
+                    "bacteriophage" to "Phage T4"
+                )
+            } else {
+                listOf(
+                    "graphene" to "Graphene Sheet",
+                    "nanotube" to "Carbon Nanotube",
+                    "silicon" to "Silicon Lattice",
+                    "nacl" to "NaCl Salt"
+                )
+            }
+        }
+
+        androidx.compose.foundation.lazy.LazyRow(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(categoryStructures.size) { index ->
+                val (id, label) = categoryStructures[index]
+                val isSelected = selectedStructureId == id
+                Card(
+                    onClick = { viewModel.selectStructure(id) },
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSelected) BioTeal.copy(alpha = 0.2f) else DarkCard
+                    ),
+                    border = BorderStroke(1.dp, if (isSelected) BioTeal else BorderColor),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = label,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) Color.White else TextSecondary
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3. Descriptive Scientific Card of active structure model
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            border = BorderStroke(1.dp, BorderColor.copy(alpha = 0.7f))
+        ) {
+            Column(modifier = Modifier.padding(10.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column {
+                        Text(
+                            text = structure.name.uppercase(),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = structure.subtitle,
+                            fontSize = 9.sp,
+                            color = BioTeal,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                    if (structure.pdbReference != "N/A" && structure.pdbReference.isNotEmpty()) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = DarkBg),
+                            border = BorderStroke(0.5.dp, BorderColor)
+                        ) {
+                            Text(
+                                text = "PDB REFS: " + structure.pdbReference,
+                                fontSize = 8.sp,
+                                color = TextSecondary,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = structure.description,
+                    fontSize = 11.sp,
+                    color = TextSecondary,
+                    lineHeight = 14.sp
+                )
+            }
+        }
+
+        // 4. Interactive 3D Canvas
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(vertical = 8.dp)
+                .padding(vertical = 4.dp)
                 .border(BorderStroke(1.dp, BorderColor), RoundedCornerShape(12.dp))
-                .background(Color.Black.copy(alpha = 0.2f))
+                .background(Color.Black.copy(alpha = 0.3f))
                 .pointerInput(Unit) {
                     detectDragGestures { change, dragAmount ->
-                        // Convert drag displacement to 3D rotation angles
-                        rotY += dragAmount.x * 0.006f
-                        rotX -= dragAmount.y * 0.006f
+                        change.consume()
+                        rotY += dragAmount.x * 0.005f
+                        rotX -= dragAmount.y * 0.005f
                     }
                 }
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val cx = size.width / 2f
                 val cy = size.height / 2f
-                
-                // Draw ambient background space grid
+
+                // Concentric design lines
                 drawCircle(
-                    color = BorderColor.copy(alpha = 0.05f),
-                    radius = 200.dp.toPx(),
+                    color = BorderColor.copy(alpha = 0.04f),
+                    radius = 160.dp.toPx(),
+                    center = Offset(cx, cy),
+                    style = Stroke(width = 1f)
+                )
+                drawCircle(
+                    color = BorderColor.copy(alpha = 0.02f),
+                    radius = 240.dp.toPx(),
                     center = Offset(cx, cy),
                     style = Stroke(width = 1f)
                 )
 
-                // 1. Draw Main Viral Envelope Membrane Circle (underlay)
-                val coreRadius = 80.dp.toPx()
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(DarkSurface, DarkCard, BorderColor.copy(alpha = 0.3f)),
-                        center = Offset(cx - 20f, cy - 20f),
-                        radius = coreRadius
-                    ),
-                    radius = coreRadius,
-                    center = Offset(cx, cy)
-                )
-                // Glossy outline trimer border
-                drawCircle(
-                    color = BorderColor.copy(alpha = 0.6f),
-                    radius = coreRadius,
-                    center = Offset(cx, cy),
-                    style = Stroke(width = 1.dp.toPx())
-                )
-
-                // Draw secondary nucleocapsid core inside envelope (represented by floating points)
-                val corePointsCount = 30
-                for (p in 0..corePointsCount) {
-                    val pAngle = p * (2 * PI / corePointsCount).toFloat()
-                    val coreDist = 45.dp.toPx() * sin(p * 2.3f).absoluteValue
-                    val px = cx + coreDist * cos(pAngle + rotY * 0.8f)
-                    val py = cy + coreDist * sin(pAngle + rotX * 0.8f)
+                // Render capsid/envelope boundary shadow background underlay
+                if (structure.baseEnvelopeRadiusDp > 0f) {
+                    val envRad = structure.baseEnvelopeRadiusDp.dp.toPx()
+                    val gradientCenter = Offset(cx - envRad * 0.2f, cy - envRad * 0.2f)
                     drawCircle(
-                        color = BioGreen.copy(alpha = 0.4f),
-                        radius = 2.dp.toPx(),
-                        center = Offset(px, py)
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                DarkSurface,
+                                DarkCard,
+                                structure.envelopeColor.copy(alpha = 0.12f)
+                            ),
+                            center = gradientCenter,
+                            radius = envRad
+                        ),
+                        radius = envRad,
+                        center = Offset(cx, cy)
+                    )
+                    drawCircle(
+                        color = structure.envelopeColor,
+                        radius = envRad,
+                        center = Offset(cx, cy),
+                        style = Stroke(width = 1.dp.toPx())
                     )
                 }
 
-                // 2. Rotate, project, and draw 3D Spikes and proteins
-                // We sort proteins by depth 'z' coordinates (back-to-front rendering) to ensure authentic spatial depth overlap!
-                val projectedSpikes = spikes.map { spike ->
-                    // Transform polar coordinate to 3D Cartesian vectors around sphere origin
-                    val x0 = spike.radius * sin(spike.theta) * cos(spike.phi)
-                    val y0 = spike.radius * sin(spike.theta) * sin(spike.phi)
-                    val z0 = spike.radius * cos(spike.theta)
-
-                    // Apply rotation 3D transformation matrices
-                    val x1 = x0 * cos(rotY) - z0 * sin(rotY)
-                    val z1 = x0 * sin(rotY) + z0 * cos(rotY)
-                    val y1 = y0
+                // Project 3D vector points using linear perspective scaling
+                val projectedAtoms = structure.atoms.map { atom ->
+                    val x1 = atom.x * cos(rotY) - atom.z * sin(rotY)
+                    val z1 = atom.x * sin(rotY) + atom.z * cos(rotY)
+                    val y1 = atom.y
 
                     val y2 = y1 * cos(rotX) - z1 * sin(rotX)
                     val z2 = y1 * sin(rotX) + z1 * cos(rotX)
                     val x2 = x1
 
-                    // Final Perspective projection variables
                     val distanceFactor = 320f
                     val scale = distanceFactor / (distanceFactor + z2)
-                    
-                    val projX = cx + x2 * scale
-                    val projY = cy + y2 * scale
-                    
-                    object {
-                        val base = spike
-                        val px = projX
-                        val py = projY
-                        val depthZ = z2
-                        val renderSize = 14.dp.toPx() * scale
-                    }
-                }.sortedBy { it.depthZ } // Sort back to front (low Z coordinate to high Z)
 
-                // Render the sorted elements
-                projectedSpikes.forEach { proj ->
-                    val spikeColor = proj.base.color
-                    val centerAlpha = if (proj.depthZ < 0) 0.35f else 1.0f
+                    ProjectedAtom(
+                        atom = atom,
+                        px = cx + x2 * scale,
+                        py = cy + y2 * scale,
+                        depthZ = z2,
+                        renderSize = atom.sizeDp.dp.toPx() * scale
+                    )
+                }.sortedBy { it.depthZ }
 
-                    // Draw Spike connector stalk extending outwards from main envelope boundary
-                    if (proj.base.radius > 0f) {
-                        val wallX = cx + (proj.px - cx) * (coreRadius / (coreRadius + (proj.base.radius - coreRadius)))
-                        val wallY = cy + (proj.py - cy) * (coreRadius / (coreRadius + (proj.base.radius - coreRadius)))
+                val projectedMap = projectedAtoms.associateBy { it.atom.id }
 
+                // Draw connectivity bounds
+                structure.bonds.forEach { bond ->
+                    val sourceProj = projectedMap[bond.sourceId]
+                    val targetProj = projectedMap[bond.targetId]
+                    if (sourceProj != null && targetProj != null) {
+                        val bondColor = bond.color
+                        val avgDepth = (sourceProj.depthZ + targetProj.depthZ) / 2f
+                        val alpha = if (avgDepth < 0) 0.3f else 0.8f
+                        val thickness = bond.thicknessDp.dp.toPx() * (320f / (320f + avgDepth))
                         drawLine(
-                            color = if (proj.depthZ < 0) BorderColor.copy(alpha = 0.2f) else spikeColor.copy(alpha = 0.6f),
-                            start = Offset(wallX, wallY),
-                            end = Offset(proj.px, proj.py),
-                            strokeWidth = if (proj.depthZ > 0) 6f else 2.5f
+                            color = bondColor.copy(alpha = alpha),
+                            start = Offset(sourceProj.px, sourceProj.py),
+                            end = Offset(targetProj.px, targetProj.py),
+                            strokeWidth = thickness
                         )
                     }
+                }
 
-                    // Draw actual structural node representation
-                    if (proj.base.radius == 0f) {
-                        drawCircle(
-                            color = BioGreen.copy(alpha = 0.7f),
-                            radius = 20.dp.toPx(),
-                            center = Offset(proj.px, proj.py),
-                            style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f))
-                        )
-                    } else {
-                        drawCircle(
-                            color = if (proj.depthZ < 0) DarkSurface.copy(alpha = 0.3f) else DarkSurface,
-                            radius = proj.renderSize,
-                            center = Offset(proj.px, proj.py)
-                        )
+                // Draw molecular atoms
+                projectedAtoms.forEach { proj ->
+                    val atomColor = proj.atom.color
+                    val alpha = if (proj.depthZ < 0) 0.4f else 1.0f
+                    val isSelected = activeAtomDetail?.id == proj.atom.id
 
-                        drawCircle(
-                            color = spikeColor,
-                            radius = proj.renderSize,
-                            center = Offset(proj.px, proj.py),
-                            style = Stroke(width = if (activeSpikeDetail?.id == proj.base.id) 4.dp.toPx() else 1.5.dp.toPx()),
-                            alpha = centerAlpha
-                        )
+                    drawCircle(
+                        color = DarkSurface,
+                        radius = proj.renderSize,
+                        center = Offset(proj.px, proj.py),
+                        alpha = alpha
+                    )
 
-                        drawCircle(
-                            color = spikeColor.copy(alpha = 0.3f),
-                            radius = proj.renderSize - 3.dp.toPx(),
-                            center = Offset(proj.px, proj.py),
-                            alpha = centerAlpha
+                    drawCircle(
+                        color = atomColor,
+                        radius = proj.renderSize,
+                        center = Offset(proj.px, proj.py),
+                        style = Stroke(width = if (isSelected) 3.5.dp.toPx() else 1.5.dp.toPx()),
+                        alpha = alpha
+                    )
+
+                    drawCircle(
+                        color = atomColor.copy(alpha = if (isSelected) 0.45f else 0.2f),
+                        radius = proj.renderSize - 1.5.dp.toPx(),
+                        center = Offset(proj.px, proj.py),
+                        alpha = alpha
+                    )
+
+                    // Draw atomic letter symbols perfectly aligned inside canvas
+                    if (proj.depthZ >= 0 && proj.atom.elementSymbol.isNotEmpty() && proj.renderSize > 8.dp.toPx()) {
+                        val textPaint = android.graphics.Paint().apply {
+                            color = android.graphics.Color.WHITE
+                            textSize = (proj.renderSize * 0.9f).coerceIn(8.dp.toPx(), 13.dp.toPx())
+                            textAlign = android.graphics.Paint.Align.CENTER
+                            typeface = android.graphics.Typeface.MONOSPACE
+                            isFakeBoldText = true
+                        }
+                        drawContext.canvas.nativeCanvas.drawText(
+                            proj.atom.elementSymbol,
+                            proj.px,
+                            proj.py + (textPaint.textSize / 3f),
+                            textPaint
                         )
                     }
                 }
             }
 
-            // Click detector layer logic
+            // Clicking layer detector
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(rotX, rotY) {
+                    .pointerInput(selectedStructureId) {
                         detectTapGestures { tapLoc ->
                             val cx = size.width / 2f
                             val cy = size.height / 2f
 
-                            // Project spikes coordinates to evaluate nearest touch coordinate
-                            val clickedSpike = spikes.minByOrNull { spike ->
-                                val x0 = spike.radius * sin(spike.theta) * cos(spike.phi)
-                                val y0 = spike.radius * sin(spike.theta) * sin(spike.phi)
-                                val z0 = spike.radius * cos(spike.theta)
-
-                                var x1 = x0 * cos(rotY) - z0 * sin(rotY)
-                                var z1 = x0 * sin(rotY) + z0 * cos(rotY)
-                                var y1 = y0
+                            val projectedAtomsList = structure.atoms.map { atom ->
+                                val x1 = atom.x * cos(rotY) - atom.z * sin(rotY)
+                                val z1 = atom.x * sin(rotY) + atom.z * cos(rotY)
+                                val y1 = atom.y
 
                                 val y2 = y1 * cos(rotX) - z1 * sin(rotX)
                                 val z2 = y1 * sin(rotX) + z1 * cos(rotX)
@@ -1277,114 +2763,156 @@ fun Virion3DScreen() {
 
                                 val distanceFactor = 320f
                                 val scale = distanceFactor / (distanceFactor + z2)
-                                val px = cx + x2 * scale
-                                val py = cy + y2 * scale
 
-                                sqrt((px - tapLoc.x).pow(2) + (py - tapLoc.y).pow(2))
+                                ProjectedAtom(
+                                    atom = atom,
+                                    px = cx + x2 * scale,
+                                    py = cy + y2 * scale,
+                                    depthZ = z2,
+                                    renderSize = atom.sizeDp.dp.toPx() * scale
+                                )
                             }
 
-                            if (clickedSpike != null) {
-                                val x0 = clickedSpike.radius * sin(clickedSpike.theta) * cos(clickedSpike.phi)
-                                val y0 = clickedSpike.radius * sin(clickedSpike.theta) * sin(clickedSpike.phi)
-                                val z0 = clickedSpike.radius * cos(clickedSpike.theta)
-
-                                var x1 = x0 * cos(rotY) - z0 * sin(rotY)
-                                var z1 = x0 * sin(rotY) + z0 * cos(rotY)
-                                var y1 = y0
-
-                                val y2 = y1 * cos(rotX) - z1 * sin(rotX)
-                                val z2 = y1 * sin(rotX) + z1 * cos(rotX)
-                                val x2 = x1
-
-                                val distanceFactor = 320f
-                                val scale = distanceFactor / (distanceFactor + z2)
-                                val px = cx + x2 * scale
-                                val py = cy + y2 * scale
-
-                                val hitDist = sqrt((px - tapLoc.x).pow(2) + (py - tapLoc.y).pow(2))
-                                if (hitDist < hitDistPx) {
-                                    activeSpikeDetail = clickedSpike
+                            var nearest: ProjectedAtom? = null
+                            var minDist = Float.MAX_VALUE
+                            for (proj in projectedAtomsList) {
+                                val dist = sqrt((proj.px - tapLoc.x).pow(2) + (proj.py - tapLoc.y).pow(2))
+                                if (dist < minDist) {
+                                    minDist = dist
+                                    nearest = proj
                                 }
+                            }
+
+                            if (nearest != null && minDist < hitDistPx) {
+                                activeAtomDetail = nearest.atom
                             }
                         }
                     }
             ) {}
+
+            Text(
+                text = "⇄ Swipe to Rotate | Tap node to inspect",
+                fontSize = 9.sp,
+                color = TextMuted,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(8.dp)
+            )
         }
 
-        // Active highlighted structural details drawer
+        // 5. Active highlight atom info display bottom panel
         AnimatedVisibility(
-            visible = activeSpikeDetail != null,
+            visible = activeAtomDetail != null,
             enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut(),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
         ) {
-            activeSpikeDetail?.let { spike ->
+            activeAtomDetail?.let { node ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = DarkSurface),
                     border = BorderStroke(1.dp, BorderColor),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
+                    Column(modifier = Modifier.padding(12.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .size(10.dp)
-                                        .background(spike.color, CircleShape)
+                                        .background(node.color, CircleShape)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = spike.name,
-                                    fontSize = 15.sp,
+                                    text = node.name,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
+                                    color = TextPrimary,
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                 )
                             }
-                            
-                            Text(
-                                text = "PDB ID: ${spike.pdbId}",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = FontFamily.Monospace,
-                                color = BioTeal
-                            )
+                            if (node.elementSymbol.isNotEmpty()) {
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = DarkBg),
+                                    border = BorderStroke(0.5.dp, BorderColor)
+                                ) {
+                                    Text(
+                                        text = "SYM: " + node.elementSymbol,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = BioTeal,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = spike.desc,
-                            fontSize = 12.sp,
-                            color = TextSecondary
+                            text = node.desc,
+                            fontSize = 11.sp,
+                            color = TextSecondary,
+                            lineHeight = 15.sp
                         )
+
                         Divider(
                             modifier = Modifier.padding(vertical = 8.dp),
-                            color = BorderColor.copy(alpha = 0.5f)
+                            color = BorderColor.copy(alpha = 0.4f)
                         )
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text(text = "POLAR COORDINATE", fontSize = 8.sp, color = TextMuted, fontFamily = FontFamily.Monospace)
                                 Text(
-                                    text = "θ: ${"%.2f".format(spike.theta)} rad | φ: ${"%.2f".format(spike.phi)} rad",
-                                    fontSize = 10.sp,
+                                    text = "COORD VECTORS (X, Y, Z)",
+                                    fontSize = 8.sp,
+                                    color = TextMuted,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Text(
+                                    text = "X: ${"%.1f".format(node.x)} | Y: ${"%.1f".format(node.y)} | Z: ${"%.1f".format(node.z)}",
+                                    fontSize = 9.sp,
                                     color = Color.White,
                                     fontFamily = FontFamily.Monospace
                                 )
                             }
+
                             Column(horizontalAlignment = Alignment.End) {
-                                Text(text = "SURFACE EXPOSURE", fontSize = 8.sp, color = TextMuted, fontFamily = FontFamily.Monospace)
                                 Text(
-                                    text = if (spike.radius > 100) "HIGHLY EXPOSED" else "INTERNAL CAPSID",
-                                    fontSize = 10.sp,
+                                    text = "SPATIAL EXPOSURE",
+                                    fontSize = 8.sp,
+                                    color = TextMuted,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                val distFromOrigin = sqrt(node.x * node.x + node.y * node.y + node.z * node.z)
+                                val exposureLabel = when {
+                                    distFromOrigin > 100f -> "OUTER SURFACE"
+                                    distFromOrigin > 60f -> "MID ENVELOPE"
+                                    else -> "INTERNAL CORE"
+                                }
+                                val exposureColor = when {
+                                    distFromOrigin > 100f -> BioCoral
+                                    distFromOrigin > 60f -> BioAmber
+                                    else -> BioGreen
+                                }
+                                Text(
+                                    text = exposureLabel,
+                                    fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (spike.radius > 100) BioCoral else BioGreen,
+                                    color = exposureColor,
                                     fontFamily = FontFamily.Monospace
                                 )
                             }
@@ -1514,6 +3042,32 @@ fun ArchitectureBlueprintsScreen() {
                     Z-DEPTH SORTING: Painters Algorithm (Depth-Z index ordering)
                 """.trimIndent(),
                 icon = Icons.Default.Refresh
+            ),
+            ArchSubsystem(
+                id = "repo",
+                title = "5. OPEN-SOURCE REPOSITORY",
+                subtitle = "GitHub core source integration",
+                description = "Hosts Nurcholish Adam's entire Python ETL modeling scripts, spatial contact mapping modules, Neo4j Graph database loader scripts, and research manuscript publications.",
+                codeSnippet = """
+                    // AUTHORITATIVE OPEN-SOURCE CORE SYSTEM
+                    // Project: SARS-CoV-2 (COVID-19) 3D Knowledge Graph
+                    // Lead Researcher: Nurcholish Adam
+                    
+                    AUTHORITY REPOSITORY:
+                    https://github.com/NurcholishAdam/SARS-CoV-2-3D-Knowledge-Graph
+                    
+                    PIPELINE COMPONENTS:
+                    1. Data Ingestion (PDB coords + FASTA sequences)
+                    2. Spatial resolving metrics (Euclidean matrices)
+                    3. Neo4j graph generation queries (Cypher scripts)
+                    4. 3D Web/Mobile dynamic renderings
+                """.trimIndent(),
+                schemaInfo = """
+                    ORGANIZATION: github.com/NurcholishAdam
+                    TARGET REPO: SARS-CoV-2-3D-Knowledge-Graph
+                    LICENSE TYPE: Open Science Academic Research
+                """.trimIndent(),
+                icon = Icons.Default.Star
             )
         )
     }
@@ -1605,6 +3159,36 @@ fun ArchitectureBlueprintsScreen() {
                 fontSize = 11.sp,
                 color = TextSecondary
             )
+
+            if (activeSubsc.id == "repo") {
+                val context = LocalContext.current
+                Button(
+                    onClick = {
+                        val intent = android.content.Intent(
+                            android.content.Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://github.com/NurcholishAdam/SARS-CoV-2-3D-Knowledge-Graph")
+                        )
+                        context.startActivity(intent)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = BioTeal),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).testTag("launch_github_repo_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = "Open GitHub",
+                        modifier = Modifier.size(16.dp).padding(end = 4.dp),
+                        tint = Color.Black
+                    )
+                    Text(
+                        text = "OPEN GITHUB REPOSITORY",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
 
             // Technical metadata pill
             Card(
