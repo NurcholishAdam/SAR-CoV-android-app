@@ -1114,28 +1114,19 @@ fun MainDashboard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Image(
-                        painter = painterResource(id = R.drawable.sarcov_logo_1779700665394),
-                        contentDescription = "Bio-Datasets Preferred Logo",
+                    Card(
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, BorderColor),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
                         modifier = Modifier
-                            .size(28.dp)
-                            .padding(end = 6.dp)
-                    )
-                    Column {
-                        Text(
-                            text = "BIO-DATASETS",
-                            style = TextStyle(
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        )
-                        Text(
-                            text = "Viral Pathogens & Macromolecular Datasets",
-                            fontSize = 11.sp,
-                            color = BioTeal,
-                            fontWeight = FontWeight.Medium
+                            .size(42.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.sarcov_logo_1779700665394),
+                            contentDescription = "SARS-CoV-19 Premium Logo",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(2.dp)
                         )
                     }
                 }
@@ -1320,21 +1311,57 @@ fun GraphDatasetScreen(viewModel: SarcovViewModel) {
             .background(DarkBg)
             .padding(12.dp)
     ) {
-        // App intro
-        Text(
-            text = "VIRAL & MOLECULAR STRUCTURE DATASETS",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            fontFamily = FontFamily.Monospace,
-            modifier = Modifier.padding(bottom = 2.dp)
-        )
-        Text(
-            text = "Authoritative relational database coordinates mapped from macromolecular PDB entry data. Examine node attributes, properties, and biological relational configurations without rendering visual overhead.",
-            fontSize = 11.sp,
-            color = TextSecondary,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
+        // App intro Card featuring the custom SARS-CoV-19 logo
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            colors = CardDefaults.cardColors(containerColor = DarkSurface),
+            border = BorderStroke(1.dp, BorderColor)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // High-contrast clean card showcasing the dual-hemisphere biological & technical virus logo
+                Card(
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, BorderColor),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    modifier = Modifier
+                        .size(68.dp)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.sarcov_logo_1779700665394),
+                        contentDescription = "SARS-CoV-19 Logo",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(4.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "VIRAL & MOLECULAR STRUCTURE DATASETS",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    Text(
+                        text = "Authoritative relational database coordinates mapped from macromolecular PDB entry data. Examine node attributes, properties, and biological configurations.",
+                        fontSize = 11.sp,
+                        color = TextSecondary,
+                        lineHeight = 14.sp
+                    )
+                }
+            }
+        }
 
         // 1. Terminal Console & Cypher Controller
         Card(
