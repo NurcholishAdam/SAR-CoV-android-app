@@ -1114,21 +1114,10 @@ fun MainDashboard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Card(
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, BorderColor),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
-                        modifier = Modifier
-                            .size(42.dp)
-                    ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.sarcov_logo_1779700665394),
-                            contentDescription = "SARS-CoV-19 Premium Logo",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(2.dp)
-                        )
-                    }
+                    TransparentLogoImage(
+                        size = 36.dp,
+                        contentDescription = "SARS-CoV-19 Premium Logo"
+                    )
                 }
                 
                 // Status Lights & GitHub Integration Card
@@ -1326,21 +1315,10 @@ fun GraphDatasetScreen(viewModel: SarcovViewModel) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // High-contrast clean card showcasing the dual-hemisphere biological & technical virus logo
-                Card(
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, BorderColor),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    modifier = Modifier
-                        .size(68.dp)
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.sarcov_logo_1779700665394),
-                        contentDescription = "SARS-CoV-19 Logo",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(4.dp)
-                    )
-                }
+                TransparentLogoImage(
+                    size = 64.dp,
+                    contentDescription = "SARS-CoV-19 Logo"
+                )
 
                 Spacer(modifier = Modifier.width(12.dp))
 
@@ -3557,5 +3535,118 @@ fun GeminiChatScreen(viewModel: SarcovViewModel) {
             
             Spacer(modifier = Modifier.height(4.dp))
         }
+    }
+}
+
+@Composable
+fun TransparentLogoImage(
+    modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 42.dp,
+    contentDescription: String = "SARS-CoV-19 Logo"
+) {
+    val context = LocalContext.current
+    val processedLogo = remember(context) {
+        try {
+            val options = android.graphics.BitmapFactory.Options().apply {
+                inMutable = true
+            }
+            val original = android.graphics.BitmapFactory.decodeResource(
+                context.resources,
+                R.drawable.sarcov_logo_1779700665394,
+                options
+            )
+            if (original != null) {
+                val width = original.width
+                val height = original.height
+                val pixels = IntArray(width * height)
+                original.getPixels(pixels, 0, width, 0, 0, width, height)
+                
+                val visited = java.util.BitSet(width * height)
+                val queue = java.util.LinkedList<Int>()
+                
+                fun isWhite(idx: Int): Boolean {
+                    val color = pixels[idx]
+                    val r = (color shr 16) and 0xFF
+                    val g = (color shr 8) and 0xFF
+                    val b = color and 0xFF
+                    return r > 240 && g > 240 && b > 240
+                }
+                
+                for (x in 0 until width) {
+                    val topIdx = x
+                    if (isWhite(topIdx)) {
+                        queue.add(topIdx)
+                        visited.set(topIdx)
+                    }
+                    val botIdx = (height - 1) * width + x
+                    if (isWhite(botIdx)) {
+                        queue.add(botIdx)
+                        visited.set(botIdx)
+                    }
+                }
+                for (y in 0 until height) {
+                    val leftIdx = y * width
+                    if (isWhite(leftIdx)) {
+                        queue.add(leftIdx)
+                        visited.set(leftIdx)
+                    }
+                    val rightIdx = y * width + (width - 1)
+                    if (isWhite(rightIdx)) {
+                        queue.add(rightIdx)
+                        visited.set(rightIdx)
+                    }
+                }
+                
+                val dx = intArrayOf(-1, 1, 0, 0)
+                val dy = intArrayOf(0, 0, -1, 1)
+                
+                while (!queue.isEmpty()) {
+                    val currIdx = queue.poll()
+                    pixels[currIdx] = 0x00000000
+                    
+                    val cx = currIdx % width
+                    val cy = currIdx / width
+                    
+                    for (i in 0 until 4) {
+                        val nx = cx + dx[i]
+                        val ny = cy + dy[i]
+                        if (nx in 0 until width && ny in 0 until height) {
+                            val nIdx = ny * width + nx
+                            if (!visited.get(nIdx)) {
+                                val color = pixels[nIdx]
+                                val r = (color shr 16) and 0xFF
+                                val g = (color shr 8) and 0xFF
+                                val b = color and 0xFF
+                                if (r > 200 && g > 200 && b > 200) {
+                                    queue.add(nIdx)
+                                    visited.set(nIdx)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                original.setPixels(pixels, 0, width, 0, 0, width, height)
+                original.asImageBitmap()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    if (processedLogo != null) {
+        Image(
+            bitmap = processedLogo,
+            contentDescription = contentDescription,
+            modifier = modifier.size(size)
+        )
+    } else {
+        Image(
+            painter = painterResource(id = R.drawable.sarcov_logo_1779700665394),
+            contentDescription = contentDescription,
+            modifier = modifier.size(size)
+        )
     }
 }
