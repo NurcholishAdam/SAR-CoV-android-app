@@ -49,6 +49,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.theme.*
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import androidx.compose.ui.text.font.FontStyle
@@ -1112,17 +1114,16 @@ fun MainDashboard(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = "Sarcov Core Logo",
-                        tint = BioCoral,
+                    Image(
+                        painter = painterResource(id = R.drawable.sarcov_logo_1779700665394),
+                        contentDescription = "Bio-Datasets Preferred Logo",
                         modifier = Modifier
                             .size(28.dp)
                             .padding(end = 6.dp)
                     )
                     Column {
                         Text(
-                            text = "SARCOV",
+                            text = "BIO-DATASETS",
                             style = TextStyle(
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Bold,
@@ -1131,7 +1132,7 @@ fun MainDashboard(
                             )
                         )
                         Text(
-                            text = "SARS-CoV-2 3D Knowledge Graph System",
+                            text = "Viral Pathogens & Macromolecular Datasets",
                             fontSize = 11.sp,
                             color = BioTeal,
                             fontWeight = FontWeight.Medium
@@ -1321,7 +1322,7 @@ fun GraphDatasetScreen(viewModel: SarcovViewModel) {
     ) {
         // App intro
         Text(
-            text = "SARS-CoV-2 3D KNOWLEDGE GRAPH DATASET",
+            text = "VIRAL & MOLECULAR STRUCTURE DATASETS",
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White,
@@ -1329,7 +1330,7 @@ fun GraphDatasetScreen(viewModel: SarcovViewModel) {
             modifier = Modifier.padding(bottom = 2.dp)
         )
         Text(
-            text = "Authoritative relational database coordinates mapped from Nurcholish Adam's PDB spatial research pipeline. Examine nodes, properties, and Neo4j relational bindings without rendering visual overhead.",
+            text = "Authoritative relational database coordinates mapped from macromolecular PDB entry data. Examine node attributes, properties, and biological relational configurations without rendering visual overhead.",
             fontSize = 11.sp,
             color = TextSecondary,
             modifier = Modifier.padding(bottom = 12.dp)
